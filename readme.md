@@ -7,7 +7,7 @@ This project implements a **Decentralized Escrow Service** using **Clarinet** an
 - Funds are locked in escrow until conditions are met.
 - Dispute resolution mechanism involving a trusted arbitrator.
 - Refund mechanism in case of non-performance.
-- Use cases: freelance jobs, real estate transactions, marketplace payments.
+- Use cases: freelance jobs, real estate transactions, marketplace payments..
 
 ---
 
