@@ -1,6 +1,8 @@
 
 # Decentralized Escrow Service
 
+![escrow-screenshot](./escrow-frontend/public/escrow.png)
+
 This project implements a **Decentralized Escrow Service** using **Clarinet** and **Clarity**. The smart contract facilitates secure transactions between two parties (buyer and seller) by locking funds in escrow. It includes key features like dispute handling through an arbitrator and automatic fund release upon confirmation of delivery.
 
 ## Features
