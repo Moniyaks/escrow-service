@@ -1,127 +1,191 @@
-import { useState } from 'react';
-import reactLogo from './assets/react.svg';
-import './App.css';
+// import React, { useState } from "react";
+// import { ClientProvider, useOpenContractCall, useAuth } from "@micro-stacks/react";
+// import { principalCV, uintCV } from "@stacks/transactions"; // Clarity argument types
+// import reactLogo from "./assets/react.svg";
+
+// export default function App() {
+//   const [formData, setFormData] = useState({
+//     seller: "",
+//     arbitrator: "",
+//     amount: "",
+//   });
+//   const [message, setMessage] = useState("");
+//   const [loading, setLoading] = useState(false);
+
+//   const contractAddress = "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM"; // Replace with actual contract address
+//   const contractName = "escrow-service"; // Replace with your contract name
+
+//   const { isSignedIn, signIn, signOut } = useAuth();
+//     const { openContractCall } = useOpenContractCall();
+
+//   const handleInputChange = (e) => {
+//     const { name, value } = e.target;
+//     setFormData((prev) => ({ ...prev, [name]: value }));
+//   };
+
+//   const initiateEscrow = async () => {
+//     if (!isSignedIn) {
+//       setMessage("❌ Please connect your wallet to initiate escrow.");
+//       return;
+//     }
+
+//     const { seller, arbitrator, amount } = formData;
+
+//     if (!seller || !arbitrator || !amount || parseInt(amount) <= 0) {
+//       setMessage("❌ All fields are required, and amount must be greater than 0.");
+//       return;
+//     }
+
+//     setLoading(true);
+//     setMessage("");
+
+//     try {
+//       const functionArgs = [
+//         principalCV(seller),
+//         principalCV(arbitrator),
+//         uintCV(parseInt(amount)),
+//       ];
+
+//       const options = {
+//         contractAddress,
+//         contractName,
+//         functionName: "initiate-escrow",
+//         functionArgs,
+//         appDetails: { name: "Decentralized Escrow Service" },
+//         onFinish: (data) => {
+//           console.log("Transaction successful:", data);
+//           setMessage("🎉 Escrow initiated successfully!");
+//         },
+//         onCancel: () => {
+//           setMessage("❌ Transaction canceled.");
+//         },
+//       };
+
+//       await openContractCall(options);
+//     } catch (error) {
+//       console.error("Error initiating escrow:", error);
+//       setMessage("❌ Failed to initiate escrow: " + error.message);
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   return (
+//     <MicroStacks.ClientProvider appName="Decentralized Escrow Service" appIconUrl={reactLogo}>
+//       <div className="min-h-screen bg-gray-100 flex items-center justify-center p-8">
+//         <div className="max-w-md w-full bg-white shadow-md rounded-lg p-6">
+//           <header className="mb-6">
+//             <h1 className="text-2xl font-bold text-gray-700">Decentralized Escrow</h1>
+//             <p className="text-sm text-gray-500">Secure your transactions with ease</p>
+//           </header>
+
+//           {!isSignedIn ? (
+//             <button
+//               onClick={signIn}
+//               className="w-full bg-blue-500 text-white py-2 rounded-lg font-bold hover:bg-blue-600 transition"
+//             >
+//               Connect Wallet
+//             </button>
+//           ) : (
+//             <>
+//               <div className="space-y-4">
+//                 <div>
+//                   <label className="block text-sm text-gray-600 mb-1">Seller Address</label>
+//                   <input
+//                     type="text"
+//                     name="seller"
+//                     placeholder="Enter seller address"
+//                     value={formData.seller}
+//                     onChange={handleInputChange}
+//                     className="w-full p-3 border rounded-lg"
+//                   />
+//                 </div>
+//                 <div>
+//                   <label className="block text-sm text-gray-600 mb-1">Arbitrator Address</label>
+//                   <input
+//                     type="text"
+//                     name="arbitrator"
+//                     placeholder="Enter arbitrator address"
+//                     value={formData.arbitrator}
+//                     onChange={handleInputChange}
+//                     className="w-full p-3 border rounded-lg"
+//                   />
+//                 </div>
+//                 <div>
+//                   <label className="block text-sm text-gray-600 mb-1">Amount (uSTX)</label>
+//                   <input
+//                     type="number"
+//                     name="amount"
+//                     placeholder="Enter amount"
+//                     value={formData.amount}
+//                     onChange={handleInputChange}
+//                     className="w-full p-3 border rounded-lg"
+//                   />
+//                 </div>
+//               </div>
+
+//               <button
+//                 onClick={initiateEscrow}
+//                 className={`w-full mt-4 py-2 rounded-lg font-bold ${
+//                   loading
+//                     ? "bg-gray-400 cursor-not-allowed"
+//                     : "bg-green-500 hover:bg-green-600 text-white"
+//                 }`}
+//                 disabled={loading}
+//               >
+//                 {loading ? "Processing..." : "Initiate Escrow"}
+//               </button>
+
+//               <button
+//                 onClick={signOut}
+//                 className="w-full mt-4 bg-red-500 text-white py-2 rounded-lg font-bold hover:bg-red-600 transition"
+//               >
+//                 Disconnect Wallet
+//               </button>
+//             </>
+//           )}
+
+//           {message && (
+//             <p
+//               className={`mt-4 text-center font-medium ${
+//                 message.includes("success") ? "text-green-500" : "text-red-500"
+//               }`}
+//             >
+//               {message}
+//             </p>
+//           )}
+//         </div>
+//       </div>
+//     </MicroStacks.ClientProvider>
+//   );
+// }
+
+
+import React from "react";
+import { ClientProvider } from "@micro-stacks/react";
+import EscrowForm from "./components/EscrowForm";
+import Header from "./components/Header";
+import Footer from "./components/Footer";
+import reactLogo from "./assets/react.svg";
 import * as MicroStacks from '@micro-stacks/react';
-import { WalletConnectButton } from './components/wallet-connect-button.jsx';
-import { UserCard } from './components/user-card.jsx';
-import { Logo } from './components/ustx-logo.jsx';
-import { NetworkToggle } from './components/network-toggle.jsx';
-import { ClientProvider, useMicroStacksClient } from '@micro-stacks/react';
 
-function Contents() {
-  return (
-    <>
-   
-      <h1>micro-stacks + Vite + React</h1>
-      <div class="card">
-        <UserCard />
-        <WalletConnectButton />
-        <NetworkToggle />
-        <p
-          style={{
-            display: 'block',
-            marginTop: '40px',
-          }}
-        >
-          Edit <code>src/app.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p class="read-the-docs">Click on the micro-stacks, Vite, and React logos to learn more</p>
-    </>
-  );
-}
 
-export default function App() {
-  const [formData, setFormData] = useState({
-    seller: '',
-    arbitrator: '',
-    amount: 0,
-  });
-  const [message, setMessage] = useState('');
-  // const client = useMicroStacksClient();
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
-
-  const initiateEscrow = async () => {
-    try {
-      const functionArgs = [
-        formData.seller,
-        formData.arbitrator,
-        parseInt(formData.amount),
-      ];
-      // Call the contract function (mock)
-      console.log('Calling smart contract with args: ', functionArgs);
-      setMessage('Escrow initiated successfully!');
-    } catch (err) {
-      setMessage('Error initiating escrow: ' + err.message);
-    }
-  };
-
+const App = () => {
   return (
     <MicroStacks.ClientProvider
-      appName={'React + micro-stacks'}
+      appName={"React + micro-stacks"}
       appIconUrl={reactLogo}
       enableNetworkSwitching={true}
     >
-      {/* <Contents /> */}
       <div className="bg-retroBg min-h-screen p-8 text-retroText">
-        <header className="text-center mb-10">
-          <h1 className="text-4xl font-bold">Decentralized Escrow Service</h1>
-          <p className="text-retroAccent">Secure your funds with peace of mind</p>
-        </header>
-
+        <Header />
         <main className="max-w-lg mx-auto bg-white p-6 rounded-lg shadow-md">
-          <WalletConnectButton />
-          <h2 className="text-2xl mb-4 font-bold">Initiate Escrow</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block mb-2 text-sm">Seller Address:</label>
-              <input
-                type="text"
-                name="seller"
-                className="w-full p-2 border rounded-md"
-                value={formData.seller}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div>
-              <label className="block mb-2 text-sm">Arbitrator Address:</label>
-              <input
-                type="text"
-                name="arbitrator"
-                className="w-full p-2 border rounded-md"
-                value={formData.arbitrator}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div>
-              <label className="block mb-2 text-sm">Amount (uSTX):</label>
-              <input
-                type="number"
-                name="amount"
-                className="w-full p-2 border rounded-md"
-                value={formData.amount}
-                onChange={handleInputChange}
-              />
-            </div>
-            <button
-              className="bg-retroAccent text-white py-2 px-4 rounded-md hover:bg-retroText"
-              onClick={initiateEscrow}
-            >
-              Initiate Escrow
-            </button>
-          </div>
-          {message && <p className="mt-4 text-center text-retroAccent">{message}</p>}
+          <EscrowForm />
         </main>
-
-        <footer className="text-center mt-10 text-sm">
-          <p>&copy; {new Date().getFullYear()} Decentralized Escrow Service</p>
-          <p>Retro-inspired design for modern security</p>
-        </footer>
+        <Footer />
       </div>
     </MicroStacks.ClientProvider>
   );
-}
+};
+
+export default App;
