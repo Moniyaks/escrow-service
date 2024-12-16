@@ -10,6 +10,15 @@ const mockContract = {
     amount: 0,
     isComplete: false,
     isDisputed: false,
+    requireMultiSig: false,
+    multiSigThreshold: 1000000,
+    arbitratorApproved: false,
+    totalAmount: 0,
+    milestoneCount: 0,
+    arbitratorFeePercentage: 2,
+    userRatings: new Map(),
+    milestones: new Map(),
+    arbitratorEarnings: new Map(),
   },
   initiateEscrow: (buyerPrincipal: string, sellerPrincipal: string, arbitratorPrincipal: string, escrowAmount: number) => {
     if (escrowAmount <= 0) {
@@ -43,6 +52,76 @@ const mockContract = {
     }
     throw new Error('Dispute resolution failed.');
   },
+
+  resolvePartial: (arbitrator: string, buyerAmount: number, sellerAmount: number) => {
+    if (mockContract.state.arbitrator === arbitrator && 
+        (buyerAmount + sellerAmount === mockContract.state.amount)) {
+      mockContract.state.isComplete = true;
+      return true;
+    }
+    throw new Error('Partial resolution failed.');
+  },
+
+  approveHighValueRelease: (arbitrator: string) => {
+    if (mockContract.state.arbitrator === arbitrator && 
+        mockContract.state.requireMultiSig) {
+      mockContract.state.arbitratorApproved = true;
+      return true;
+    }
+    throw new Error('High value approval failed.');
+  },
+
+  rateCounterparty: (rater: string, target: string, isPositive: boolean) => {
+    if ((rater === mockContract.state.buyer || rater === mockContract.state.seller) && 
+        mockContract.state.isComplete) {
+      const currentRating = mockContract.state.userRatings.get(target) || {
+        positiveRatings: 0,
+        negativeRatings: 0,
+        totalTransactions: 0
+      };
+      
+      mockContract.state.userRatings.set(target, {
+        positiveRatings: isPositive ? currentRating.positiveRatings + 1 : currentRating.positiveRatings,
+        negativeRatings: isPositive ? currentRating.negativeRatings : currentRating.negativeRatings + 1,
+        totalTransactions: currentRating.totalTransactions + 1
+      });
+      return true;
+    }
+    throw new Error('Rating failed.');
+  },
+
+  addMilestone: (seller: string, amount: number, description: string) => {
+    if (seller === mockContract.state.seller && 
+        amount + mockContract.state.amount <= mockContract.state.totalAmount) {
+      mockContract.state.milestones.set(mockContract.state.milestoneCount, {
+        amount,
+        description,
+        isComplete: false
+      });
+      mockContract.state.milestoneCount++;
+      return true;
+    }
+    throw new Error('Adding milestone failed.');
+  },
+
+  completeMilestone: (buyer: string, milestoneId: number) => {
+    if (buyer === mockContract.state.buyer) {
+      const milestone = mockContract.state.milestones.get(milestoneId);
+      if (milestone) {
+        milestone.isComplete = true;
+        return true;
+      }
+    }
+    throw new Error('Completing milestone failed.');
+  },
+
+  setArbitratorFee: (arbitrator: string, newFee: number) => {
+    if (arbitrator === mockContract.state.arbitrator && newFee <= 10) {
+      mockContract.state.arbitratorFeePercentage = newFee;
+      return true;
+    }
+    throw new Error('Setting arbitrator fee failed.');
+  }
 };
 
 describe('Escrow Service', () => {
@@ -62,9 +141,17 @@ describe('Escrow Service', () => {
       amount: 0,
       isComplete: false,
       isDisputed: false,
+      requireMultiSig: false,
+      multiSigThreshold: 1000000,
+      arbitratorApproved: false,
+      totalAmount: 0,
+      milestoneCount: 0,
+      arbitratorFeePercentage: 2,
+      userRatings: new Map(),
+      milestones: new Map(),
+      arbitratorEarnings: new Map(),
     };
   });
-
   it('should allow the buyer to initiate the escrow', () => {
     const result = mockContract.initiateEscrow(buyer, seller, arbitrator, 1000);
     expect(result).toEqual({ value: true });
