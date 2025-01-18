@@ -188,3 +188,57 @@
     (var-set escrow-status "EXPIRED")
     (ok true)))
 
+
+;; Add at the top
+(define-trait escrow-events
+  ((escrow-initiated (principal principal uint) (response bool uint))
+   (delivery-confirmed (principal) (response bool uint))
+   (dispute-raised (principal) (response bool uint))))
+
+;; Emit in relevant functions
+(print {event: "escrow-initiated", buyer: tx-sender, seller: (var-get seller) , amount: (var-get amount)})
+
+
+
+(define-map escrow-history uint 
+  {
+    buyer: principal,
+    seller: principal,
+    amount: uint,
+    status: (string-ascii 20),
+    timestamp: uint
+  })
+
+(define-data-var escrow-count uint u0)
+
+;; Add to initiate-escrow
+(map-set escrow-history (var-get escrow-count)
+  {
+    buyer: tx-sender,
+    seller: (var-get seller),
+    amount: (var-get amount),
+    status: "ACTIVE",
+    timestamp: block-height
+  })
+(var-set escrow-count (+ (var-get escrow-count) u1))
+
+
+;; Insurance pool functionality
+(define-data-var insurance-pool-balance uint u0)
+(define-constant INSURANCE_FEE_PERCENTAGE u1) ;; 1%
+
+(define-public (add-insurance)
+  (begin
+    (asserts! (is-eq tx-sender (var-get buyer)) (err u160))
+    (let ((insurance-fee (/ (* (var-get amount) INSURANCE_FEE_PERCENTAGE) u100)))
+      (try! (stx-transfer? insurance-fee tx-sender (as-contract tx-sender)))
+      (var-set insurance-pool-balance (+ (var-get insurance-pool-balance) insurance-fee))
+      (ok true))))
+
+(define-public (claim-insurance)
+  (begin
+    (asserts! (var-get is-disputed) (err u161))
+    (asserts! (is-eq tx-sender (var-get buyer)) (err u162))
+    (try! (stx-transfer? (var-get amount) (as-contract tx-sender) tx-sender))
+    (ok true)))
+
