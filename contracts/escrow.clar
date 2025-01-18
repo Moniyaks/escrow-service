@@ -4,9 +4,17 @@
 (define-data-var amount uint u0)
 (define-data-var is-complete bool false)
 (define-data-var is-disputed bool false)
+(define-data-var escrow-status (string-ascii 20) "PENDING")
+(define-data-var expiration-height uint u0)
+(define-constant ESCROW_DURATION u1440) ;; ~10 days in blocks
+(define-data-var currency-type (string-ascii 10) "STX")
 
 ;; Buyer initiates the escrow by locking funds
-(define-public (initiate-escrow (seller-principal principal) (arbitrator-principal principal) (escrow-amount uint))
+(define-public (initiate-escrow 
+    (seller-principal principal) 
+    (arbitrator-principal principal) 
+    (escrow-amount uint)
+    (currency (string-ascii 10)))
   (begin
     (asserts! (is-eq tx-sender (var-get buyer)) (err u100))
     (asserts! (> escrow-amount u0) (err u106))
@@ -18,6 +26,9 @@
     (var-set seller seller-principal)
     (var-set arbitrator arbitrator-principal)
     (var-set amount escrow-amount)
+    (var-set expiration-height (+ block-height ESCROW_DURATION))
+    (var-set currency-type currency)
+    (var-set escrow-status "ACTIVE")
     (ok true)
   )
 )
@@ -29,6 +40,7 @@
     (asserts! (not (var-get is-disputed)) (err u103))
     (var-set is-complete true)
     (try! (stx-transfer? (var-get amount) (as-contract tx-sender) (var-get seller)))
+    (var-set escrow-status "COMPLETED")
     (ok true)
   )
 )
@@ -166,3 +178,13 @@
         (map-set arbitrator-earnings tx-sender u0)
         (ok true))
       (err u143))))
+
+
+;; New timeout claim function
+(define-public (claim-timeout)
+  (begin
+    (asserts! (> block-height (var-get expiration-height)) (err u150))
+    (try! (stx-transfer? (var-get amount) (as-contract tx-sender) (var-get buyer)))
+    (var-set escrow-status "EXPIRED")
+    (ok true)))
+
