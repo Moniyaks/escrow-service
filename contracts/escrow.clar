@@ -4,9 +4,17 @@
 (define-data-var amount uint u0)
 (define-data-var is-complete bool false)
 (define-data-var is-disputed bool false)
+(define-data-var escrow-status (string-ascii 20) "PENDING")
+(define-data-var expiration-height uint u0)
+(define-constant ESCROW_DURATION u1440) ;; ~10 days in blocks
+(define-data-var currency-type (string-ascii 10) "STX")
 
 ;; Buyer initiates the escrow by locking funds
-(define-public (initiate-escrow (seller-principal principal) (arbitrator-principal principal) (escrow-amount uint))
+(define-public (initiate-escrow 
+    (seller-principal principal) 
+    (arbitrator-principal principal) 
+    (escrow-amount uint)
+    (currency (string-ascii 10)))
   (begin
     (asserts! (is-eq tx-sender (var-get buyer)) (err u100))
     (asserts! (> escrow-amount u0) (err u106))
@@ -18,6 +26,9 @@
     (var-set seller seller-principal)
     (var-set arbitrator arbitrator-principal)
     (var-set amount escrow-amount)
+    (var-set expiration-height (+ block-height ESCROW_DURATION))
+    (var-set currency-type currency)
+    (var-set escrow-status "ACTIVE")
     (ok true)
   )
 )
@@ -29,6 +40,7 @@
     (asserts! (not (var-get is-disputed)) (err u103))
     (var-set is-complete true)
     (try! (stx-transfer? (var-get amount) (as-contract tx-sender) (var-get seller)))
+    (var-set escrow-status "COMPLETED")
     (ok true)
   )
 )
@@ -166,3 +178,122 @@
         (map-set arbitrator-earnings tx-sender u0)
         (ok true))
       (err u143))))
+
+
+;; New timeout claim function
+(define-public (claim-timeout)
+  (begin
+    (asserts! (> block-height (var-get expiration-height)) (err u150))
+    (try! (stx-transfer? (var-get amount) (as-contract tx-sender) (var-get buyer)))
+    (var-set escrow-status "EXPIRED")
+    (ok true)))
+
+
+;; Add at the top
+(define-trait escrow-events
+  ((escrow-initiated (principal principal uint) (response bool uint))
+   (delivery-confirmed (principal) (response bool uint))
+   (dispute-raised (principal) (response bool uint))))
+
+;; Emit in relevant functions
+(print {event: "escrow-initiated", buyer: tx-sender, seller: (var-get seller) , amount: (var-get amount)})
+
+
+
+(define-map escrow-history uint 
+  {
+    buyer: principal,
+    seller: principal,
+    amount: uint,
+    status: (string-ascii 20),
+    timestamp: uint
+  })
+
+(define-data-var escrow-count uint u0)
+
+;; Add to initiate-escrow
+(map-set escrow-history (var-get escrow-count)
+  {
+    buyer: tx-sender,
+    seller: (var-get seller),
+    amount: (var-get amount),
+    status: "ACTIVE",
+    timestamp: block-height
+  })
+(var-set escrow-count (+ (var-get escrow-count) u1))
+
+
+;; Insurance pool functionality
+(define-data-var insurance-pool-balance uint u0)
+(define-constant INSURANCE_FEE_PERCENTAGE u1) ;; 1%
+
+(define-public (add-insurance)
+  (begin
+    (asserts! (is-eq tx-sender (var-get buyer)) (err u160))
+    (let ((insurance-fee (/ (* (var-get amount) INSURANCE_FEE_PERCENTAGE) u100)))
+      (try! (stx-transfer? insurance-fee tx-sender (as-contract tx-sender)))
+      (var-set insurance-pool-balance (+ (var-get insurance-pool-balance) insurance-fee))
+      (ok true))))
+
+(define-public (claim-insurance)
+  (begin
+    (asserts! (var-get is-disputed) (err u161))
+    (asserts! (is-eq tx-sender (var-get buyer)) (err u162))
+    (try! (stx-transfer? (var-get amount) (as-contract tx-sender) tx-sender))
+    (ok true)))
+
+
+(define-map user-transaction-volume principal uint)
+(define-constant TIER1-THRESHOLD u1000000) ;; 1M uSTX
+(define-constant TIER2-THRESHOLD u5000000) ;; 5M uSTX
+
+(define-public (calculate-fee (user-principal principal))
+  (begin
+    (match (map-get? user-transaction-volume user-principal)
+      volume (ok (if (> volume TIER2-THRESHOLD)
+                    u1 ;; 1% fee
+                    (if (> volume TIER1-THRESHOLD)
+                        u2 ;; 2% fee
+                        u3))) ;; 3% fee
+      (ok u3)))) ;; Default 3% fee
+
+
+(define-map time-locks uint 
+  {
+    release-height: uint,
+    amount: uint,
+    recipient: principal
+  })
+
+(define-data-var time-lock-count uint u0)
+
+(define-public (create-time-lock (blocks uint) (lock-amount uint))
+  (begin
+    (asserts! (is-eq tx-sender (var-get seller)) (err u170))
+    (asserts! (<= lock-amount (var-get amount)) (err u171))
+    (map-set time-locks (var-get time-lock-count)
+      {
+        release-height: (+ block-height blocks),
+        amount: lock-amount,
+        recipient: (var-get seller)
+      })
+    (var-set time-lock-count (+ (var-get time-lock-count) u1))
+    (ok true)))
+
+(define-public (execute-time-lock (lock-id uint))
+  (begin
+    (match (map-get? time-locks lock-id)
+      lock (begin
+        (asserts! (>= block-height (get release-height lock)) (err u172))
+        (try! (stx-transfer? (get amount lock) 
+                            (as-contract tx-sender) 
+                            (get recipient lock)))
+        (ok true))
+      (err u173))))
+
+
+
+
+
+
+      
