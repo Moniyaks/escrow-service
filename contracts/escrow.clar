@@ -242,3 +242,25 @@
     (try! (stx-transfer? (var-get amount) (as-contract tx-sender) tx-sender))
     (ok true)))
 
+
+(define-map user-transaction-volume principal uint)
+(define-constant TIER1-THRESHOLD u1000000) ;; 1M uSTX
+(define-constant TIER2-THRESHOLD u5000000) ;; 5M uSTX
+
+(define-public (calculate-fee (user-principal principal))
+  (begin
+    (match (map-get? user-transaction-volume user-principal)
+      volume (ok (if (> volume TIER2-THRESHOLD)
+                    u1 ;; 1% fee
+                    (if (> volume TIER1-THRESHOLD)
+                        u2 ;; 2% fee
+                        u3))) ;; 3% fee
+      (ok u3)))) ;; Default 3% fee
+
+
+(define-map time-locks uint 
+  {
+    release-height: uint,
+    amount: uint,
+    recipient: principal
+  })
