@@ -264,3 +264,36 @@
     amount: uint,
     recipient: principal
   })
+
+(define-data-var time-lock-count uint u0)
+
+(define-public (create-time-lock (blocks uint) (lock-amount uint))
+  (begin
+    (asserts! (is-eq tx-sender (var-get seller)) (err u170))
+    (asserts! (<= lock-amount (var-get amount)) (err u171))
+    (map-set time-locks (var-get time-lock-count)
+      {
+        release-height: (+ block-height blocks),
+        amount: lock-amount,
+        recipient: (var-get seller)
+      })
+    (var-set time-lock-count (+ (var-get time-lock-count) u1))
+    (ok true)))
+
+(define-public (execute-time-lock (lock-id uint))
+  (begin
+    (match (map-get? time-locks lock-id)
+      lock (begin
+        (asserts! (>= block-height (get release-height lock)) (err u172))
+        (try! (stx-transfer? (get amount lock) 
+                            (as-contract tx-sender) 
+                            (get recipient lock)))
+        (ok true))
+      (err u173))))
+
+
+
+
+
+
+      
