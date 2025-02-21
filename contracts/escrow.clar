@@ -292,8 +292,101 @@
       (err u173))))
 
 
+;; Add supported currencies map
+(define-map supported-currencies (string-ascii 10) bool)
+
+;; Initialize supported currencies
+(map-set supported-currencies "STX" true)
+(map-set supported-currencies "BTC" true)
+
+(define-public (add-currency (currency-symbol (string-ascii 10)))
+  (begin 
+    (asserts! (is-eq tx-sender (var-get arbitrator)) (err u180))
+    (map-set supported-currencies currency-symbol true)
+    (ok true)))
+
+
+
+
+
+(define-data-var cancellation-window uint u100) ;; blocks
+(define-data-var can-cancel bool true)
+
+(define-public (cancel-escrow)
+  (begin
+    (asserts! (is-eq tx-sender (var-get buyer)) (err u181))
+    (asserts! (var-get can-cancel) (err u182))
+    (asserts! (< block-height (+ (var-get cancellation-window) block-height)) (err u183))
+    (try! (stx-transfer? (var-get amount) (as-contract tx-sender) (var-get buyer)))
+    (var-set escrow-status "CANCELLED")
+    (ok true)))
+
 
 
 
 
       
+(define-map referrers principal uint)
+(define-constant REFERRAL_REWARD u1) ;; 1%
+
+(define-public (add-referrer (referrer principal))
+  (begin
+    (asserts! (not (is-eq referrer tx-sender)) (err u184))
+    (let ((reward (/ (* (var-get amount) REFERRAL_REWARD) u100)))
+      (try! (stx-transfer? reward (as-contract tx-sender) referrer))
+      (map-set referrers referrer (+ (default-to u0 (map-get? referrers referrer)) reward))
+      (ok true))))
+
+
+
+(define-map whitelisted-users principal bool)
+
+(define-public (add-to-whitelist (user principal))
+  (begin
+    (asserts! (is-eq tx-sender (var-get arbitrator)) (err u185))
+    (map-set whitelisted-users user true)
+    (ok true)))
+
+(define-public (remove-from-whitelist (user principal))
+  (begin
+    (asserts! (is-eq tx-sender (var-get arbitrator)) (err u186))
+    (map-set whitelisted-users user false)
+    (ok true)))
+
+
+
+(define-map escrow-participants principal bool)
+(define-data-var required-confirmations uint u0)
+(define-map participant-confirmations principal bool)
+
+(define-public (add-participant (participant principal))
+  (begin
+    (asserts! (is-eq tx-sender (var-get arbitrator)) (err u187))
+    (map-set escrow-participants participant true)
+    (var-set required-confirmations (+ (var-get required-confirmations) u1))
+    (ok true)))
+
+
+
+(define-data-var is-paused bool false)
+(define-data-var admin principal tx-sender)
+
+(define-public (toggle-pause)
+  (begin
+    (asserts! (is-eq tx-sender (var-get admin)) (err u188))
+    (var-set is-paused (not (var-get is-paused)))
+    (ok true)))
+
+
+
+(define-map transaction-comments uint (string-ascii 500))
+(define-data-var comment-count uint u0)
+
+(define-public (add-comment (comment (string-ascii 500)))
+  (begin
+    (asserts! (or (is-eq tx-sender (var-get buyer)) 
+                  (is-eq tx-sender (var-get seller))) 
+              (err u190))
+    (map-set transaction-comments (var-get comment-count) comment)
+    (var-set comment-count (+ (var-get comment-count) u1))
+    (ok true)))
