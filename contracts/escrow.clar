@@ -390,3 +390,102 @@
     (map-set transaction-comments (var-get comment-count) comment)
     (var-set comment-count (+ (var-get comment-count) u1))
     (ok true)))
+
+
+
+
+
+
+
+
+
+(define-data-var auto-release-height uint u0)
+(define-constant AUTO_RELEASE_BLOCKS u2880) ;; ~20 days
+
+(define-public (set-auto-release)
+  (begin
+    (asserts! (is-eq tx-sender (var-get seller)) (err u200))
+    (var-set auto-release-height (+ block-height AUTO_RELEASE_BLOCKS))
+    (ok true)))
+
+(define-public (auto-release)
+  (begin
+    (asserts! (>= block-height (var-get auto-release-height)) (err u201))
+    (try! (stx-transfer? (var-get amount) (as-contract tx-sender) (var-get seller)))
+    (var-set escrow-status "AUTO_RELEASED")
+    (ok true)))
+
+
+(define-map backup-arbitrators principal bool)
+(define-data-var active-arbitrator-count uint u0)
+
+(define-public (add-backup-arbitrator (new-arbitrator principal))
+  (begin
+    (asserts! (is-eq tx-sender (var-get arbitrator)) (err u210))
+    (map-set backup-arbitrators new-arbitrator true)
+    (var-set active-arbitrator-count (+ (var-get active-arbitrator-count) u1))
+    (ok true)))
+
+
+
+(define-map payment-splits principal uint)
+
+(define-public (set-payment-split (recipient principal) (percentage uint))
+  (begin
+    (asserts! (is-eq tx-sender (var-get seller)) (err u220))
+    (asserts! (<= percentage u100) (err u221))
+    (map-set payment-splits recipient percentage)
+    (ok true)))
+
+
+
+(define-map user-reputation principal uint)
+(define-constant BASE_FEE u30) ;; 3%
+(define-constant MIN_FEE u10) ;; 1%
+
+(define-public (calculate-reputation-fee (user principal))
+  (begin
+    (let ((reputation (default-to u0 (map-get? user-reputation user))))
+      (ok (if (> (- BASE_FEE reputation) MIN_FEE)
+              (- BASE_FEE reputation)
+              MIN_FEE)))))
+
+
+(define-data-var emergency-admin principal tx-sender)
+(define-data-var is-emergency bool false)
+
+(define-public (toggle-emergency)
+  (begin
+    (asserts! (is-eq tx-sender (var-get emergency-admin)) (err u230))
+    (var-set is-emergency (not (var-get is-emergency)))
+    (ok true)))
+
+
+
+(define-map exchange-rates (string-ascii 10) uint)
+
+(define-public (set-exchange-rate (currency (string-ascii 10)) (rate uint))
+  (begin
+    (asserts! (is-eq tx-sender (var-get arbitrator)) (err u240))
+    (map-set exchange-rates currency rate)
+    (ok true)))
+
+
+(define-map activity-log uint 
+  {
+    action: (string-ascii 20),
+    actor: principal,
+    timestamp: uint
+  })
+(define-data-var log-count uint u0)
+
+(define-public (log-activity (action (string-ascii 20)))
+  (begin
+    (map-set activity-log (var-get log-count)
+      {
+        action: action,
+        actor: tx-sender,
+        timestamp: block-height
+      })
+    (var-set log-count (+ (var-get log-count) u1))
+    (ok true)))
