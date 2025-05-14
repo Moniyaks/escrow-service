@@ -822,3 +822,75 @@
     )
   )
 )
+
+
+(define-map pool-participants uint (list 50 principal))
+(define-map pool-contributions uint (list 50 uint))
+(define-map pools uint {
+    total-amount: uint,
+    required-participants: uint,
+    status: (string-ascii 20),
+    pool-owner: principal
+})
+(define-data-var pool-counter uint u0)
+
+(define-public (create-pool (required uint))
+    (let ((pool-id (var-get pool-counter)))
+        (begin
+            (map-set pools pool-id {
+                total-amount: u0,
+                required-participants: required,
+                status: "OPEN",
+                pool-owner: tx-sender
+            })
+            (var-set pool-counter (+ pool-id u1))
+            (ok pool-id))))
+
+(define-public (join-pool (pool-id uint) (e-amount uint))
+    (let ((pool (unwrap! (map-get? pools pool-id) (err u401))))
+        (begin
+            (try! (stx-transfer? e-amount tx-sender (as-contract tx-sender)))
+            (map-set pools pool-id (merge pool {
+                total-amount: (+ (get total-amount pool) e-amount)
+            }))
+            (map-set pool-participants pool-id (unwrap! (as-max-len? (append (default-to (list) (map-get? pool-participants pool-id)) tx-sender) u50) (err u404)))
+            (map-set pool-contributions pool-id (unwrap! (as-max-len? (append (default-to (list) (map-get? pool-contributions pool-id)) e-amount) u50) (err u404)))
+            (ok true))))
+
+
+
+(define-map escrow-templates uint {
+    name: (string-ascii 50),
+    duration: uint,
+    fee-percentage: uint,
+    arbitrator: principal,
+    requirements: (string-ascii 100)
+})
+(define-data-var template-counter uint u0)
+
+(define-public (create-template 
+    (name (string-ascii 50))
+    (duration uint)
+    (fee uint)
+    (arbitrator-principal principal)
+    (requirements (string-ascii 100)))
+    (let ((template-id (var-get template-counter)))
+        (begin
+            (map-set escrow-templates template-id {
+                name: name,
+                duration: duration,
+                fee-percentage: fee,
+                arbitrator: arbitrator-principal,
+                requirements: requirements
+            })
+            (var-set template-counter (+ template-id u1))
+            (ok template-id))))
+
+(define-public (use-template (template-id uint) (escrow-amount uint))
+    (let ((template (unwrap! (map-get? escrow-templates template-id) (err u501))))
+        (begin
+            (try! (stx-transfer? escrow-amount tx-sender (as-contract tx-sender)))
+            (var-set expiration-height (+ block-height (get duration template)))
+            (var-set arbitrator (get arbitrator template))
+            (var-set amount escrow-amount)
+            (ok true))))
