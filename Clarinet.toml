@@ -5,6 +5,11 @@ authors = []
 telemetry = true
 cache_dir = '.\.cache'
 requirements = []
+[contracts.dynamic-reputations]
+path = 'contracts/dynamic-reputations.clar'
+clarity_version = 3
+epoch = 3.1
+
 [contracts.escrow]
 path = 'contracts/escrow.clar'
 clarity_version = 2
@@ -12,6 +17,11 @@ epoch = 2.5
 
 [contracts.reputation-oracle]
 path = 'contracts/reputation-oracle.clar'
+clarity_version = 3
+epoch = 3.1
+
+[contracts.arbitrator-marketplace]
+path = 'contracts/arbitrator-marketplace.clar'
 clarity_version = 3
 epoch = 3.1
 [repl.analysis]
