@@ -68,6 +68,11 @@ plan:
             path: "contracts\\dynamic-reputations.clar"
             clarity-version: 3
         - emulated-contract-publish:
+            contract-name: escrow-insurance-pools
+            emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            path: "contracts\\escrow-insurance-pools.clar"
+            clarity-version: 3
+        - emulated-contract-publish:
             contract-name: reputation-oracle
             emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
             path: "contracts\\reputation-oracle.clar"
